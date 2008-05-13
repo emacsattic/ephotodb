@@ -1,0 +1,64 @@
+h1 {font-family: Verdana, Arial, Helvetica, sans-serif;
+          color: #B0B0B0}
+
+h1.sect1 {font-family: Verdana, Arial, Helvetica, sans-serif;
+          color: #999999}
+
+h2 {font-family: Verdana, Arial, Helvetica, sans-serif;
+             color: gray}
+
+h3 {font-family: Verdana, Arial, Helvetica, sans-serif;
+             color: #666666}
+
+tt.filename, tt.option {color: #777777;
+	     font-size: 110%;
+	     font-weight: bold;}
+
+tt.sgmltag {color: #777777;
+	     font-size: 110%;
+	     font-weight: bold;}
+
+b.command {color: #999999;}
+
+div.variablelist dt {color: #999999;
+                     font-weight: bold;}
+
+table.calstable th {color: #999999;
+                     font-weight: bold;}
+
+table.warning {color: gray;}
+
+span.guimenu, span.guimenuitem, span.guisubmenu {
+	font-family: sans-serif;
+}
+
+/* give keycaps a '3D' shaded look */
+strong.keycap, b.KEYCAP {
+	padding-left: .2em;
+	padding-right: .2em;
+	border-style: solid;
+	border-top-width: 2px;
+	border-left-width: 3px;
+	border-right-width: 3px;
+	border-bottom-width: 4px;
+	border-top-color: #eeeecc;
+	border-left-color: #eeeecc;
+	border-right-color: #999977;
+	border-bottom-color: #999977;
+	background-color: #ddddbb;
+	/* All these borders may interfere with text on the line below.  Make
+	   the text a little smaller to try and 'pull up' the bottom edge, */
+	font-size: smaller;
+}
+
+pre.programlisting { 
+        background-color: #E0E0E0;
+}
+
+pre.screen { 
+        background-color: #000000;
+        color: #CDCDCD;
+}
+
+a { color: #353535 }
+a:visited { color: #999999 }

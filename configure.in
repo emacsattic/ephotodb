@@ -1,0 +1,19 @@
+dnl Process this file with autoconf to produce a configure script.
+
+dnl check for one of the source files
+AC_INIT(ephotodb.el)
+AM_INIT_AUTOMAKE(ephotodb, 0.5)
+
+dnl find Emacs and set site-lisp path
+AM_PATH_LISPDIR
+
+dnl find external apps
+AC_PATH_PROGS(myshell, sh ash bash, sh)
+AC_PATH_PROGS(mydb2texi, docbook2texi docbook2x-texi, docbook2texi)
+
+AC_SUBST(lispdir)
+AC_SUBST(myshell)
+AC_SUBST(mydb2texi)
+
+AC_OUTPUT(Makefile)
+

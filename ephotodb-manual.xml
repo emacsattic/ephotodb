@@ -1,0 +1,836 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="http://localhost/docbook-css-0.4/driver.css" type="text/css"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.3//EN" "http://www.oasis-open.org/docbook/xml/4.3/docbookx.dtd">
+<book>
+  <bookinfo>
+    <title>Emacs Photo Database</title>
+    <author>
+      <firstname>Markus</firstname>
+      <surname>Hoenicka</surname>
+      <affiliation><address><email>markus@mhoenicka.de</email></address></affiliation>
+    </author>
+    <!-- the role attribute in the abstract element is required for the conversion to an info manual. This also explains the almost offending brevity of the abstract. -->
+    <abstract role="texinfo-node">
+      <para>An Emacs package which provides commands to manage a database of films, negatives, and prints.</para>
+    </abstract>
+  </bookinfo>
+  <preface id="preface">
+    <title>Preface</title>
+    <para>Emacs Photo Database is a tool to manage a database of films, negatives, and prints. It allows you to store the technical data of image taking, of film development, and of the printing conditions along with scans of each stage in a relational database. Commands are provided to look up particular negatives by keywords, and to display the associated film or prints. You can look up all prints made from a particular film or negative, or the film or negative information associated with a particular print. Data entry is done with simple text-based forms. Tab completion is available for all commands that need a film, negative, or print name as input.</para>
+    <para>This manual gives a brief overview of how to use the Emacs Photo Database, followed by a more thorough description of all available commands.</para>
+    <para>Please visit the <ulink url="http://ephotodb.sourceforge.net">Emacs Photo Database web page</ulink> for further information about this package and for the addresses of mailing lists where problems can be discussed.</para>
+  </preface>
+  <chapter id="chapter-installation">
+    <title>Installation</title>
+    <para>Installing ephotodb is not much different from installing other Emacs extensions. It is assumed that you have a basic understanding of the Emacs configuration and directory layout. For further information about this topic, please consult the <ulink url="http://www.gnu.org/software/emacs/manual/">GNU Emacs manual</ulink>.</para>
+    <sect1 id="sect-prerequisites">
+      <title>Prerequisites</title>
+      <para>First of all you need GNU Emacs itself. Emacs is available prepackaged for most contemporary operating systems, or it can be obtained as a source tarball from the <ulink url="http://directory.fsf.org/emacs.html">GNU site</ulink>. You also need a working installation of a SQL database. <ulink url="http://www.sqlite.org">SQLite</ulink> is recommended due to its small footprint and ease of operation. However, if you already run some other database engine like <ulink  url="http://www.mysql.com">MySQL</ulink>, it is simple enough to adapt Emacs Photo Database accordingly.</para>
+      <note>
+	<para>If your database client insists on interactively asking for a password, the engine is not suitable for use with Emacs Photo Database.</para>
+      </note>
+    </sect1>
+    <sect1 id="sect-installing">
+      <title>Installing the Emacs Lisp files</title>
+      <para>The most convenient way to install the files on your system is to use the autotools-based installation. To this end, run the following commands in the directory which contains the Emacs Photo Database sources:</para>
+      <screen>
+	<prompt>root# </prompt><userinput>./configure</userinput>
+	<prompt>root# </prompt><userinput>make</userinput>
+	<prompt>root# </prompt><userinput>make install</userinput>
+      </screen>
+      <para>The Lisp files proper will be installed into an appropriate <filename class="directory">site-lisp</filename> directory. The HTML and PDF versions of the documentation will be installed in your documentation directory, usually <filename class="directory">/usr/share/doc/ephotodb</filename> or <filename class="directory">/usr/local/share/doc/ephotodb</filename>. An info version of the manual is also installed. You can view it from the command line using <command><userinput>info ephotodb</userinput></command> or from within Emacs with the <keycombo><keycap>M</keycap><keycap>x</keycap></keycombo><userinput>photo-show-manual</userinput> command.</para>
+      <para>If you run more than one Emacs version, or if you want to test-drive refdb-mode without installing it system-wide, you can pass an alternative site-lisp directory to <command>configure</command> with the <option>--with-lispdir</option> option. Make sure that this directory is in your load path, e.g. by adding the following line to your <filename>.emacs</filename>:</para>
+      <programlisting>
+      (add-to-list 'load-path "c:/path/to/elisp/")
+      </programlisting>
+    </sect1>
+    <sect1 id="sect-setting-up">
+      <title>Setting up Emacs Photo Database</title>
+      <para>In order to use Emacs Photo Database, you'll have to perform the following steps. First, create a suitable SQL database. Second, add some lines to your <filename>.emacs</filename> file to load and initialize the package.</para>
+      <sect2 id="sect-setup-database">
+	<title>Create the Database</title>
+	<para>Create an empty SQL database to store your data. The procedure depends on the database engine you use. This section provides the procedures for SQLite and for MySQL. Other engines will require some adjustments in the procedures as well as in the SQL scripts.</para>
+	<sect3 id="sect-create-database-sqlite">
+	  <title>SQLite</title>
+	  <para>SQLite creates the database the first time you access it. All you need to do is to create the tables by running the provided SQL script. Replace the second argument ("DBPATH") with the full path of the database file. You can put it anywhere as long as you have write access.</para>
+	  <screen>
+	    <prompt>~$ </prompt><userinput>sqlite3 DBPATH &lt; photo.sqlite.sql</userinput>
+	  </screen>
+	</sect3>
+	<sect3 id="sect-database-mysql">
+	  <title>MySQL</title>
+	  <para>MySQL requires some more work as we have to create the database, allow you to access it, and then create the tables. Remember that you have to run the first two commands with database administrator permissions. "DBNAME" is the name of your database.</para>
+	  <screen>
+	    <prompt>~$ </prompt><userinput>mysql -u ADMIN --password=ADMINPASSWD -e "create database DBNAME"</userinput>
+	    <prompt>~$ </prompt><userinput>mysql -u ADMIN --password=ADMINPASSWD -e "grant all on DBNAME.*</userinput>
+	    <userinput>      to 'USERNAME'@'localhost'"</userinput>
+	    <prompt>~$ </prompt><userinput>mysql -u USERNAME --password=PASSWD -D DBNAME &lt; photo.mysql.sql</userinput>
+	  </screen>
+	</sect3>
+      </sect2>
+      <sect2 id="sect-setup-dotemacs">
+	<title>Modify your <filename>.emacs</filename></title>
+	<para>In order to access the database from Emacs you'll have to load the package either from your <filename>.emacs</filename> or from a global startup file (<filename>default.el</filename> or <filename>site-start.el</filename>). To this end, load the package from one of the startup files like this:</para>
+	<programlisting>
+(require 'ephotodb)
+	</programlisting>
+	<para>Next you have to tell the package how to access the SQL database you've just created. Provide a full command to run database queries against your database engine, excluding the query string proper which ephotodb will provide. The following line uses the SQLite version 3 client:</para>
+	<programlisting>
+(setq photo-dbclient-command "sqlite3 DBPATH")
+	</programlisting>
+	<para>Use the full path instead of just the program name if it is not in your <envar>PATH</envar>. Other database engine clients require additional arguments. The following line works with MySQL (all in one line):</para>
+	<programlisting>
+(setq photo-dbclient-command "mysql -u USERNAME --password=PASSWD
+   -D DBNAME --silent --skip-column-names -e")
+	</programlisting>
+      </sect2>
+    </sect1>
+    <sect1 id="sect-invoking">
+      <title>Invoking Emacs Photo Database</title>
+      <para>In order to start a session, run <keycombo><keycap>M</keycap><keycap>x</keycap></keycombo><userinput>photo-init</userinput>. This will prepare the lists required for tab completion of film, negative, and print names. In order to keep the completion lists in sync with the database, you can run this command again whenever you've added or deleted items.</para>
+    </sect1>
+  </chapter>
+  <chapter id="chapter-concepts">
+    <title>Concepts</title>
+    <para>We'll start by introducing a few concepts which should make it easier to understand how Emacs Photo Database works. As we attempt to store the information required by a photographer using a real darkroom (instead of a digital camera and a computer) to process the images, Emacs Photo Database models the stages of image creation accordingly. Each database item has a unique name. It is prudent to stick to a systematic naming scheme for all database items, as this makes it so much simpler to keep track of your items.</para>
+    <variablelist>
+      <varlistentry>
+	<term>film</term>
+	<listitem>
+	  <para>For 35mm or roll film, a "film" is trivially just that: a roll which contains a set of negatives. For sheet film, a "film" is a batch of sheets which are processed together in the same tray, drum, or tank.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>negative</term>
+	<listitem>
+	  <para>A negative is one piece of film which you expose to record an image. Each film may contain several negatives, and of course you can make an unlimited number of prints from each negative.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>print</term>
+	<listitem>
+	  <para>A print is either a single exposed sheet of photographic paper made from a particular negative, or (more conveniently) a set of conditions to reproducibly create such a print.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </chapter>
+  <chapter id="chapter-buffers">
+    <title>Buffers used by Emacs Photo Database</title>
+    <para>Whenever you run commands which create output (as opposed to status messages which are displayed in the echo area), two windows may receive data. The <varname>*photo-output*</varname> buffer displays the command results proper, e.g. the print information. The <varname>*photo-messages*</varname> buffer receives warnings and error messages which database clients send to <varname>stderr</varname>. You can conveniently display the <varname>*photo-messages*</varname> buffer by running <keycombo><keycap>M</keycap><keycap>x</keycap></keycombo><userinput>photo-show-messages</userinput> after a command failed with an error message.</para>
+    <tip>
+      <para>If you want to preserve search results displayed in the <varname>*photo-output*</varname> buffer for later use, simply rename the buffer: <keycombo><keycap>M</keycap><keycap>x</keycap></keycombo><userinput>rename-buffer <replaceable>newname</replaceable></userinput>. This temporary buffer is not associated with a file, although you can of course write it to a file using <keycombo><keycap>C</keycap><keycap>x</keycap></keycombo><keycombo><keycap>C</keycap><keycap>w</keycap></keycombo>. Your next query will generate another buffer called <varname>*photo-output*</varname>. You can repeat this process any number of times to preserve an unlimited number of query results.</para>
+    </tip>
+    <para>Commands that require additional data will prompt for these in the minibuffer. You can use the minibuffer history to recover any previously used input. In most cases you can also use minibuffer completion (<keycap>tab</keycap> or <keycap>space</keycap> key) to fill in the remainder of an argument or to choose between alternatives.</para>
+    <para>Emacs Photo Database provides three forms for data entry, see the commands <xref linkend="command-create-film"/>, <xref linkend="command-create-negative"/>, and <xref linkend="command-create-print"/>. These forms are displayed in buffers named <varname>*photo-film*</varname>, <varname>*photo-negative*</varname>, and <varname>*photo-print*</varname>, respectively (they are also used to edit and update existing data). After filling in the forms, the commands <xref linkend="command-add"/> and <xref linkend="command-update"/> send the data to the database. You can edit the forms over and over again, keeping any invariant information, and thus use the forms to create additional datasets.</para>
+  </chapter>
+  <chapter id="chapter-data">
+    <title>Data Fields</title>
+    <para>This chapter explains the data fields provided by the data entry forms.</para>
+    <sect1 id="sect-film-data">
+      <title>Film Data</title>
+      <variablelist>
+	<varlistentry>
+	  <term>film_name</term>
+	  <listitem>
+	    <para>A unique alphanumeric name. It is recommended to use the development date in ISO notation, followed by a two-digit sequence which starts at 01 each day. Example: 20080509-01</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>film_zonemode</term>
+	  <listitem>
+	    <para>The mode of exposure and development in terms of the zone system as an integer. Examples: 0 (N), -1 (N-1), 2 (N+2)</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>film_speed</term>
+	  <listitem>
+	    <para>The ISO film speed as an integer. Example: 125</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>film_type</term>
+	  <listitem>
+	    <para>The make and type of film. Example: Ilford FP4+</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>film_size</term>
+	  <listitem>
+	    <para>The size of the film. Examples: 35mm, 120 roll, 4x5in</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>film_devdate</term>
+	  <listitem>
+	    <para>The date of film development. Use ISO notation (YYYY-MM-DD) as this is recognized by virtually any database engine. Example: 2008-05-11</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>film_developer</term>
+	  <listitem>
+	    <para>The make and type of negative developer. Example: Kodak D-76</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>film_devtime</term>
+	  <listitem>
+	    <para>The time of negative development in minutes as a floating point value. Example: 8.5</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>film_devtemp</term>
+	  <listitem>
+	    <para>The temperature of negative development in your favourite temperature scale as an integer. Example: 20</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>film_devdilution</term>
+	  <listitem>
+	    <para>The dilution of the developer working solution, based on the stock solution, as alphanumeric text. Example: 1+3</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>film_devmode</term>
+	  <listitem>
+	    <para>Any additional characteristics of the development process as free text, e.g. whether a drum, a tray, or a tank was used, how often the films were moved and so on. Example: tray, water 2 min, shuffle every 10s</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>film_scan</term>
+	  <listitem>
+	    <para>The URL of a scan ("contact") of the film. Example: file:///usr/home/markus/photos/lf/20080511-01.jpg</para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+    </sect1>
+    <sect1 id="sect-negative-data">
+      <title>Negative Data</title>
+      <variablelist>
+	<varlistentry>
+	  <term>neg_name</term>
+	  <listitem>
+	    <para>A unique alphanumeric name. It is recommended to use the film name, followed by a two-digit sequence which starts at 01. Example: 20080509-01-01</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>film_name</term>
+	  <listitem>
+	    <para>The name of the film the negative belongs to. Example: 20080509-01</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>neg_date</term>
+	  <listitem>
+	    <para>The date of exposure. Use ISO notation (YYYY-MM-DD) as this is recognized by virtually any database engine. Example: 2008-05-11</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>neg_aperture</term>
+	  <listitem>
+	    <para>The aperture used as free text. Example: 45</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>neg_speed</term>
+	  <listitem>
+	    <para>The shutter speed as free text. Example: 1/4s</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>neg_filter</term>
+	  <listitem>
+	    <para>The names of any filters that were used to shoot the image. Example: light yellow</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>neg_lens</term>
+	  <listitem>
+	    <para>The lens used to shoot the image. Example: Schneider G-Claron 9/305mm</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>neg_location</term>
+	  <listitem>
+	    <para>The location, or area/city/planet where the image was taken. Example: Houston TX</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>neg_description</term>
+	  <listitem>
+	    <para>A brief description of what is on the image, or a list of keywords to provide this information. Example: trees at river, morning, fog</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>neg_scan</term>
+	  <listitem>
+	    <para>The URL of a scan ("contact") of the negative. Example: file:///usr/home/markus/photos/lf/20080511-01-03.jpg</para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+    </sect1>
+    <sect1 id="sect-print-data">
+      <title>Print Data</title>
+      <variablelist>
+	<varlistentry>
+	  <term>print_name</term>
+	  <listitem>
+	    <para>A unique alphanumeric name. It is recommended to use the negative name, followed by yet another two-digit sequence which starts at 01. Example: 20080509-01-01-03</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>neg_name</term>
+	  <listitem>
+	    <para>The name of the negative the print was made from. Example: 20080509-01-01</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>print_papertype</term>
+	  <listitem>
+	    <para>The make and type of the phototraphic paper. Example: Fortezo Museum Weight</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>print_developer</term>
+	  <listitem>
+	    <para>The make and type of the paper developer. Example: Agfa Neutol WA</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>print_devdate</term>
+	  <listitem>
+	    <para>The date when the print was made, or when the print conditions were worked out. Use ISO notation (YYYY-MM-DD) as this is recognized by virtually any database engine. Example: 2008-05-11</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>print_devtime</term>
+	  <listitem>
+	    <para>The time of paper development in minutes as a float. Example: 2.5</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>print_devtemp</term>
+	  <listitem>
+	    <para>The developer temperature in your favourite scale. Example: 20</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>print_devdilution</term>
+	  <listitem>
+	    <para>The dilution of the developer working solution, based on the stock solution, as alphanumeric text. Example: 1+4</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>print_grade</term>
+	  <listitem>
+	    <para>The grade of the paper, or the filter settings used for variable contrast paper. Example: 2.5</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>print_size</term>
+	  <listitem>
+	    <para>The paper size. Example: 18x24cm</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>print_exposure</term>
+	  <listitem>
+	    <para>A description of all your dodging, burning, split-grade, and whatnot exposure manipulations. Example: 40s, upper half +20s, forest -10s, edges +4s</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>print_developing</term>
+	  <listitem>
+	    <para>A description of all developing and post-development procedures, including split-bath, toning and so on. Example: selenium toner 1+15 90s</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>print_scan</term>
+	  <listitem>
+	    <para>The URL of a scan of the print. Example: file:///usr/home/markus/photos/lf/20080511-01-03-03.jpg</para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+    </sect1>
+  </chapter>
+  <chapter id="chapter-images">
+    <title>Images</title>
+    <para>Emacs Photo Database can store scans of films, negatives, and prints. More precisely, it stores the URLs of image files on your hard drive. These URLs are either fully qualified (e.g. "file:///usr/home/me/photo/lf/20080213-01.jpg"), or they are entered as partial paths relative to a common image root. To this end, set the image root path in your <filename>.emacs</filename> like this:</para>
+    <programlisting>
+(setq photo-image-root "file:///usr/home/me/photo/")
+    </programlisting>
+    <para>Using the same example as above, you'd use "lf/20080213-01.jpg" in a dataset. Emacs Photo Database concatenates the image root and the partial path to provide the fully qualified URL. Obviously, it is easier this way to move the scans to a different directory without having to update every single entry in the database.</para>
+    <para>Emacs Photo Database displays the fully qualified URLs as text in your query results. If you want to display the scan inline, use the command <xref linkend="command-show-images"/>. If you prefer to display the scan in a web browser, move point into the URL and run <keycombo><keycap>M</keycap><keycap>x</keycap></keycombo><userinput>browse-url</userinput> or a related command.</para>
+  </chapter>
+  <chapter id="chapter-commands">
+    <title>Emacs Photo Database commands</title>
+    <sect1 id="sect-init">
+      <title>Initialize Emacs Photo Database</title>
+      <para>This section contains commands to initialize the package and to synchronize completion lists with the database contents.</para>
+      <sect2 id="command-init" xreflabel="Init">
+	<title>Init</title>
+	<indexterm><primary sortas="init">photo-init</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-init</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Initializes the completion lists. This command should be called at the beginning of each Emacs Photo Database session, and whenever tab completion needs to be synchronized with the altered database contents.</para>
+      </sect2>
+      <sect2 id="command-scan-films-list" xreflabel="Scan Films List">
+	<title>Scan Films List</title>
+	<indexterm><primary sortas="scan-films-list">photo-scan-films-list</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-scan-films-list</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Initializes the films completion list.</para>
+      </sect2>
+      <sect2 id="command-scan-negatives-list" xreflabel="Scan Negatives List">
+	<title>Scan Negatives List</title>
+	<indexterm><primary sortas="scan-negatives-list">photo-scan-negatives-list</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-scan-negatives-list</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Initializes the negatives completion list.</para>
+      </sect2>
+      <sect2 id="command-scan-prints-list" xreflabel="Scan Prints List">
+	<title>Scan Prints List</title>
+	<indexterm><primary sortas="scan-prints-list">photo-scan-prints-list</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-scan-prints-list</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Initializes the prints completion list.</para>
+      </sect2>
+    </sect1>
+    <sect1 id="sect-add">
+      <title>Add Entries</title>
+      <para>This section contains all commands that you need to create new database entries.</para>
+      <sect2 id="command-create-film" xreflabel="Create Film">
+	<title>Create Film</title>
+	<indexterm><primary sortas="create-film">photo-create-film</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-create-film</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Creates an empty film entry form in the buffer <varname>*photo-film*</varname>.</para>
+      </sect2>
+      <sect2 id="command-create-negative" xreflabel="Create Negative">
+	<title>Create Negative</title>
+	<indexterm><primary sortas="create-negative">photo-create-negative</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-create-negative</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Creates an empty negative entry form in the buffer <varname>*photo-negative*</varname>.</para>
+      </sect2>
+      <sect2 id="command-create-print" xreflabel="Create Print">
+	<title>Create Print</title>
+	<indexterm><primary sortas="create-print">photo-create-print</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-create-print</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Creates an empty print entry form in the buffer <varname>*photo-print*</varname>.</para>
+      </sect2>
+      <sect2 id="command-add" xreflabel="Add Item">
+	<title>Add Item</title>
+	<indexterm><primary sortas="add">photo-add</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-add</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Adds the item in the current buffer (which must be one of <varname>*photo-film*</varname>, <varname>*photo-negative*</varname>, or <varname>*photo-print*</varname>) to the database.</para>
+      </sect2>
+      <sect2 id="command-add-film" xreflabel="Add Film">
+	<title>Add Film</title>
+	<indexterm><primary sortas="add-film">photo-add-film</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-add-film</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Adds the data of the film entry form in the current buffer to the database.</para>
+      </sect2>
+      <sect2 id="command-add-negative" xreflabel="Add Negative">
+	<title>Add Negative</title>
+	<indexterm><primary sortas="add-negative">photo-add-negative</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-add-negative</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Adds the data of the negative entry form in the current buffer to the database.</para>
+      </sect2>
+      <sect2 id="command-add-print" xreflabel="Add Print">
+	<title>Add Print</title>
+	<indexterm><primary sortas="add-print">photo-add-print</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-add-print</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Adds the data of the print entry form in the current buffer to the database.</para>
+      </sect2>
+    </sect1>
+    <sect1 id="sect-update">
+      <title>Update Entries</title>
+      <para>This section contains all commands that you need to edit existing database entries.</para>
+      <sect2 id="command-edit-film" xreflabel="Edit Film">
+	<title>Edit Film</title>
+	<indexterm><primary sortas="edit-film">photo-edit-film</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-edit-film</function></funcdef>
+	    <paramdef><parameter>film-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Retrieves the film named <parameter>film-name</parameter> and displays it as an editable form in the buffer <varname>*photo-film*</varname>.</para>
+      </sect2>
+      <sect2 id="command-edit-negative" xreflabel="Edit Negative">
+	<title>Edit Negative</title>
+	<indexterm><primary sortas="edit-negative">photo-edit-negative</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-edit-negative</function></funcdef>
+	    <paramdef><parameter>negative-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Retrieves the negative named <parameter>negative-name</parameter> and displays it as an editable form in the buffer <varname>*photo-negative*</varname>.</para>
+      </sect2>
+      <sect2 id="command-edit-print" xreflabel="Edit Print">
+	<title>Edit Print</title>
+	<indexterm><primary sortas="edit-print">photo-edit-print</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-edit-print</function></funcdef>
+	    <paramdef><parameter>print-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Retrieves the print named <parameter>print-name</parameter> and displays it as an editable form in the buffer <varname>*photo-print*</varname>.</para>
+      </sect2>
+      <sect2 id="command-update" xreflabel="Update Item">
+	<title>Update Item</title>
+	<indexterm><primary sortas="update">photo-update</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-update</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Updates an existing entry in the database as identified by an ID value with the form data of the current buffer (which must be one of <varname>*photo-film*</varname>, <varname>*photo-negative*</varname>, or <varname>*photo-print*</varname>).</para>
+      </sect2>
+      <sect2 id="command-update-film" xreflabel="Update Film">
+	<title>Update Film</title>
+	<indexterm><primary sortas="update-film">photo-update-film</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-update-film</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Updates an existing film in the database as identified by the film ID with the data of the film entry form in the current buffer.</para>
+      </sect2>
+      <sect2 id="command-update-negative" xreflabel="Update Negative">
+	<title>Update Negative</title>
+	<indexterm><primary sortas="update-negative">photo-update-negative</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-update-negative</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Updates an existing negative in the database as identified by the negative ID with the data of the negative entry form in the current buffer.</para>
+      </sect2>
+      <sect2 id="command-update-print" xreflabel="Update Print">
+	<title>Update Print</title>
+	<indexterm><primary sortas="update-print">photo-update-print</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-update-print</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Updates an existing print in the database as identified by the print ID with the data of the print entry form in the current buffer.</para>
+      </sect2>
+    </sect1>
+    <sect1 id="sect-delete">
+      <title>Delete Entries</title>
+      <para>This section contains all commands to delete existing entries.</para>
+      <sect2 id="command-delete-cascade-film" xreflabel="Delete Cascade Film">
+	<title>Delete Cascade Film</title>
+	<indexterm><primary sortas="delete-cascade-film">photo-delete-cascade-film</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-delete-cascade-film</function></funcdef>
+	    <paramdef><parameter>film-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Deletes the film named <parameter>film-name</parameter> from the database. Any negatives and prints which depend on this film will be deleted as well.</para>
+      </sect2>
+      <sect2 id="command-delete-film" xreflabel="Delete Film">
+	<title>Delete Film</title>
+	<indexterm><primary sortas="delete-film">photo-delete-film</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-delete-film</function></funcdef>
+	    <paramdef><parameter>film-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Deletes the film named <parameter>film-name</parameter> from the database. Any negatives which depend on this film remain in the database, so use this command with caution. <parameter>film-name</parameter> is a SQL regular expression allowing to remove more than one item at a time.</para>
+      </sect2>
+      <sect2 id="command-delete-cascade-negative" xreflabel="Delete Cascade Negative">
+	<title>Delete Cascade Negative</title>
+	<indexterm><primary sortas="delete-cascade-negative">photo-delete-cascade-negative</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-delete-cascade-negative</function></funcdef>
+	    <paramdef><parameter>negative-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Deletes the negative named <parameter>negative-name</parameter> from the database. Any prints which depend on this film will be deleted as well.</para>
+      </sect2>
+      <sect2 id="command-delete-negative" xreflabel="Delete Negative">
+	<title>Delete Negative</title>
+	<indexterm><primary sortas="delete-negative">photo-delete-negative</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-delete-negative</function></funcdef>
+	    <paramdef><parameter>negative-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Deletes the negative named <parameter>negative-name</parameter> from the database. Any prints which depend on this film remain in the database, so use this command with caution. <parameter>negative-name</parameter> is a SQL regular expression allowing to remove more than one item at a time.</para>
+      </sect2>
+      <sect2 id="command-delete-print" xreflabel="Delete Print">
+	<title>Delete Print</title>
+	<indexterm><primary sortas="delete-print">photo-delete-print</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-delete-print</function></funcdef>
+	    <paramdef><parameter>print-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Deletes the print named <parameter>print-name</parameter> from the database. <parameter>print-name</parameter> is a SQL regular expression allowing to remove more than one item at a time.</para>
+      </sect2>
+    </sect1>
+    <sect1 id="sect-display">
+      <title>Display Entries</title>
+      <para>This section introduces the commands used to display information from the database.</para>
+      <sect2 id="command-display-film" xreflabel="Display Film">
+	<title>Display Film</title>
+	<indexterm><primary sortas="display-film">photo-display-film</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-display-film</function></funcdef>
+	    <paramdef><parameter>film-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Displays the data of the film named <parameter>film-name</parameter>. <parameter>film-name</parameter> is a SQL regular expression allowing to display more than one item at a time.</para>
+      </sect2>
+      <sect2 id="command-display-film-from-region" xreflabel="Display Film from Region">
+	<title>Display Film from Region</title>
+	<indexterm><primary sortas="display-film-from-region">photo-display-film-from-region</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-display-film-from-region</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Displays the data of the film whose name is between mark and point.</para>
+      </sect2>
+      <sect2 id="command-display-negative" xreflabel="Display Negative">
+	<title>Display Negative</title>
+	<indexterm><primary sortas="display-negative">photo-display-negative</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-display-negative</function></funcdef>
+	    <paramdef><parameter>negative-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Displays the data of the negative named <parameter>negative-name</parameter> and the associated film data. <parameter>negative-name</parameter> is a SQL regular expression allowing to display more than one item at a time.</para>
+      </sect2>
+      <sect2 id="command-display-negative-from-region" xreflabel="Display Negative from Region">
+	<title>Display Negative from Region</title>
+	<indexterm><primary sortas="display-negative-from-region">photo-display-negative-from-region</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-display-negative-from-region</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Displays the data of the negative whose name is between mark and point.</para>
+      </sect2>
+      <sect2 id="command-display-print" xreflabel="Display Print">
+	<title>Display Print</title>
+	<indexterm><primary sortas="display-print">photo-display-print</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-display-print</function></funcdef>
+	    <paramdef><parameter>print-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Displays the data of the print named <parameter>print-name</parameter> and the associated negative and film data. <parameter>print-name</parameter> is a SQL regular expression allowing to display more than one item at a time.</para>
+      </sect2>
+      <sect2 id="command-display-print-from-region" xreflabel="Display Print from Region">
+	<title>Display Print from Region</title>
+	<indexterm><primary sortas="display-print-from-region">photo-display-print-from-region</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-display-print-from-region</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Displays the data of the print whose name is between mark and point.</para>
+      </sect2>
+    </sect1>
+    <sect1 id="sect-find">
+      <title>Find Entries and Associated Entries</title>
+      <para>This section contains commands to find negatives by keywords and to find items associated with an entry.</para>
+      <sect2 id="command-list-prints-of-film" xreflabel="List Prints of Film">
+	<title>List Prints of Film</title>
+	<indexterm><primary sortas="list-prints-of-film">photo-list-prints-of-film</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-list-prints-of-film</function></funcdef>
+	    <paramdef><parameter>film-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Lists all prints made from the film named <parameter>film-name</parameter>. <parameter>film-name</parameter> is a SQL regular expression allowing to display more than one item at a time.</para>
+      </sect2>
+      <sect2 id="command-list-prints-of-film-from-region" xreflabel="List Prints of Film from Region">
+	<title>List Prints of Film from Region</title>
+	<indexterm><primary sortas="list-prints-of-film-from-region">photo-list-prints-of-film-from-region</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-list-prints-of-film-from-region</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Lists all prints made from the film whose name is between mark and point.</para>
+      </sect2>
+      <sect2 id="command-list-prints-of-negative" xreflabel="List Prints of Negative">
+	<title>List Prints of Negative</title>
+	<indexterm><primary sortas="list-prints-of-negative">photo-list-prints-of-negative</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-list-prints-of-negative</function></funcdef>
+	    <paramdef><parameter>negative-name</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Lists all prints made from the negative named <parameter>negative-name</parameter>. <parameter>negative-name</parameter> is a SQL regular expression allowing to display more than one item at a time.</para>
+      </sect2>
+      <sect2 id="command-list-prints-of-negative-from-region" xreflabel="List Prints of Negative from Region">
+	<title>List Prints of Negative from Region</title>
+	<indexterm><primary sortas="list-prints-of-negative-from-region">photo-list-prints-of-negative-from-region</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-list-prints-of-negative-from-region</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>List all prints made from the negative whose name is between mark and point.</para>
+      </sect2>
+      <sect2 id="command-find-negatives" xreflabel="Find Negatives">
+	<title>Find Negatives</title>
+	<indexterm><primary sortas="find-negatives">photo-find-negatives</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-find-negatives</function></funcdef>
+	    <paramdef><parameter>term</parameter></paramdef>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Lists all negatives whose location or description matches <parameter>term</parameter> which is a SQL regular expression.</para>
+      </sect2>
+    </sect1>
+    <sect1 id="sect-show">
+      <title>Show Additional Information</title>
+      <para>This section provides commands do display additional information and to toggle inline image display on and off.</para>
+      <sect2 id="command-show-database" xreflabel="Show Database">
+	<title>Show Database</title>
+	<indexterm><primary sortas="show-database">photo-show-database</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-show-database</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Displays the command line used to access the database.</para>
+      </sect2>
+      <sect2 id="command-show-version" xreflabel="Show Version">
+	<title>Show Version</title>
+	<indexterm><primary sortas="show-version">photo-show-version</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-show-version</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Displays the Emacs Photo Database version.</para>
+      </sect2>
+      <sect2 id="command-show-manual" xreflabel="Show Manual">
+	<title>Show Manual</title>
+	<indexterm><primary sortas="show-manual">photo-show-manual</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-show-manual</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Displays the Emacs Photo Database info manual using Emacs' info-mode.</para>
+      </sect2>
+      <sect2 id="command-show-messages" xreflabel="Show Messages">
+	<title>Show Messages</title>
+	<indexterm><primary sortas="show-messages">photo-show-messages</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-show-messages</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Displays the <varname>*photo-messages*</varname> buffer which receives the error messages of database clients.</para>
+      </sect2>
+      <sect2 id="command-show-images" xreflabel="Show Images">
+	<title>Show Images</title>
+	<indexterm><primary sortas="show-images">photo-show-images</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-show-images</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Displays scans of films, negatives, and prints as inline images in the <varname>*photo-output*</varname> buffer.</para>
+      </sect2>
+      <sect2 id="command-hide-images" xreflabel="Hide Images">
+	<title>Hide Images</title>
+	<indexterm><primary sortas="hide-images">photo-hide-images</primary></indexterm>
+	<funcsynopsis>
+	  <funcprototype>
+	    <funcdef><function>photo-hide-images</function></funcdef>
+	    <void/>
+	  </funcprototype>
+	</funcsynopsis>
+	<para>Hide scans of films, negatives, and prints in the <varname>*photo-output*</varname> buffer and display the paths instead.</para>
+      </sect2>
+    </sect1>
+  </chapter>
+  <index id="index"/>
+</book>

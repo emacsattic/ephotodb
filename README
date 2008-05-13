@@ -1,0 +1,26 @@
+ephotodb README
+==================
+
+This package contains an extensions for the Emacs editor. The Emacs
+Photo Database allows to manage the data of films, negatives, and
+prints, modelling the workflow of wet-process photographers. The data
+are stored in a SQL database which you have to create using the
+provided SQL scripts.
+
+See the enclosed documentation in HTML or PDF format for further
+information.
+
+To install the package on Unix-like systems, run:
+
+tar -xzf ephotodb-X.Y.tar.gz
+cd ephotodb-X.Y
+./configure
+make
+make install
+
+To actually use ephotodb, you'll have to add a few lines to your
+.emacs. Please see the enclosed documentation, or the ephotodb.el
+source file, for details.
+
+(c) Markus Hoenicka <markus@mhoenicka.de> 2008
+
